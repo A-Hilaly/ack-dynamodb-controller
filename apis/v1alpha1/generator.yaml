@@ -7,6 +7,11 @@ operations:
     primary_identifier_field_name: BackupArn
 resources:
   Table:
+    Fields:
+      LocalSecondaryIndexes:
+        is_immutable: true
+      KeySchema:
+        is_immutable: true
     exceptions:
       errors:
         404:
@@ -22,6 +27,8 @@ resources:
         template_path: hooks/table/sdk_update_pre_build_request.go.tpl
       sdk_delete_pre_build_request:
         template_path: hooks/table/sdk_delete_pre_build_request.go.tpl
+    update_operation:
+      custom_method_name: customUpdateTable
   GlobalTable:
     exceptions:
       errors:

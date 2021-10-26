@@ -7,6 +7,30 @@ operations:
     primary_identifier_field_name: BackupArn
 resources:
   Table:
+    renames:
+      operations:
+        CreateRepository:
+          input_fields:
+            RepositoryName: Name
+        DeleteRepository:
+          input_fields:
+            RepositoryName: Name
+        DescribeRepositories:
+          input_fields:
+            RepositoryName: Name
+    fields:
+      Events:
+        is_read_only: true
+        from:
+          operation: DescribeEvents
+          path: Events
+      LocalSecondaryIndexes:
+        is_immutable: true
+      KeySchema:
+        is_immutable: true
+      GlobalSecondaryIndex:
+        compare:
+          ignore: true
     exceptions:
       errors:
         404:
@@ -22,6 +46,8 @@ resources:
         template_path: hooks/table/sdk_update_pre_build_request.go.tpl
       sdk_delete_pre_build_request:
         template_path: hooks/table/sdk_delete_pre_build_request.go.tpl
+    update_operation:
+      custom_method_name: customUpdateTable
   GlobalTable:
     exceptions:
       errors:
