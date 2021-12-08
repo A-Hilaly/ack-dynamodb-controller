@@ -19,18 +19,15 @@ resources:
           input_fields:
             RepositoryName: Name
     fields:
-      Events:
-        is_read_only: true
-        from:
-          operation: DescribeEvents
-          path: Events
       LocalSecondaryIndexes:
         is_immutable: true
       KeySchema:
         is_immutable: true
-      GlobalSecondaryIndex:
+      AttributeDefinitions:
         compare:
-          ignore: true
+          is_ignored: true
+      Replicas:
+        # is_read_only: false
     exceptions:
       errors:
         404:
@@ -56,6 +53,8 @@ resources:
     hooks:
       sdk_delete_post_build_request:
         code: customSetDeleteInput(r, input)
+      delta_pre_compare:
+        code: customPreCompare(delta, a, b)
   Backup:
     exceptions:
       errors:

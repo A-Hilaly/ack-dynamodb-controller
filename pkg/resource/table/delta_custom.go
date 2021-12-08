@@ -14,24 +14,11 @@
 package table
 
 import (
-	"encoding/json"
-	"fmt"
-	"reflect"
+	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
+	ackutil "github.com/aws-controllers-k8s/runtime/pkg/util"
 
 	"github.com/aws-controllers-k8s/dynamodb-controller/apis/v1alpha1"
-	ackutil "github.com/aws-controllers-k8s/runtime/pkg/util"
 )
-
-func debug(i interface{}) {
-	bytes, _ := json.Marshal(i)
-	fmt.Println(string(bytes))
-}
-
-func debugAll(is ...interface{}) {
-	for _, i := range is {
-		debug(i)
-	}
-}
 
 func computeGlobalSecondaryIndexDelta(
 	a []*v1alpha1.GlobalSecondaryIndex,
@@ -44,8 +31,8 @@ func computeGlobalSecondaryIndexDelta(
 		for _, bElement := range b {
 			if *aElement.IndexName == *bElement.IndexName {
 				found = true
-				if !reflect.DeepEqual(aElement, bElement) {
-					updated = append(updated, bElement)
+				if !equalGlobalSecondaryIndexes(aElement, bElement) {
+					updated = append(updated, aElement)
 				}
 			}
 			if !found {
@@ -62,34 +49,109 @@ func computeGlobalSecondaryIndexDelta(
 	return added, updated, removed
 }
 
-/* found = true
-	if ackcompare.HasNilDifference(aElements.ProvisionedThroughput, bElements.ProvisionedThroughput) {
-		updated = append(updated, bElements)
-	} else if aElements.ProvisionedThroughput != nil && bElements.ProvisionedThroughput != nil {
-		if ackcompare.HasNilDifference(aElements.ProvisionedThroughput.ReadCapacityUnits, bElements.ProvisionedThroughput.ReadCapacityUnits) {
-			updated = append(updated, bElements)
-		} else if aElements.ProvisionedThroughput.ReadCapacityUnits != nil && bElements.ProvisionedThroughput.ReadCapacityUnits != nil {
-			if *aElements.ProvisionedThroughput.ReadCapacityUnits != *bElements.ProvisionedThroughput.ReadCapacityUnits {
-				updated = append(updated, bElements)
+func equalKeySchemas(
+	a []*v1alpha1.KeySchemaElement,
+	b []*v1alpha1.KeySchemaElement,
+) bool {
+	for _, aElement := range a {
+		found := false
+		for _, bElement := range b {
+			if equalStrings(aElement.AttributeName, bElement.AttributeName) {
+				found = true
+				if !equalStrings(aElement.KeyType, bElement.KeyType) {
+					return false
+				}
 			}
 		}
-		if ackcompare.HasNilDifference(aElements.ProvisionedThroughput.WriteCapacityUnits, bElements.ProvisionedThroughput.WriteCapacityUnits) {
-			updated = append(updated, bElements)
-		} else if aElements.ProvisionedThroughput.WriteCapacityUnits != nil && bElements.ProvisionedThroughput.WriteCapacityUnits != nil {
-			if *aElements.ProvisionedThroughput.WriteCapacityUnits != *bElements.ProvisionedThroughput.WriteCapacityUnits {
-				updated = append(updated, bElements)
+		if !found {
+			return false
+		}
+	}
+	return true
+}
+
+func equalGlobalSecondaryIndexes(
+	a *v1alpha1.GlobalSecondaryIndex,
+	b *v1alpha1.GlobalSecondaryIndex,
+) bool {
+	if ackcompare.HasNilDifference(a.ProvisionedThroughput, b.ProvisionedThroughput) {
+		return false
+	}
+	if a.ProvisionedThroughput != nil && b.ProvisionedThroughput != nil {
+		if !equalInt64(a.ProvisionedThroughput.ReadCapacityUnits, b.ProvisionedThroughput.ReadCapacityUnits) {
+			return false
+		}
+		if equalInt64(a.ProvisionedThroughput.WriteCapacityUnits, b.ProvisionedThroughput.WriteCapacityUnits) {
+			return false
+		}
+	}
+	if ackcompare.HasNilDifference(a.Projection, b.Projection) {
+		return false
+	}
+	if a.Projection != nil && b.Projection != nil {
+		if !equalStrings(a.Projection.ProjectionType, b.Projection.ProjectionType) {
+			return false
+		}
+		if !ackcompare.SliceStringPEqual(a.Projection.NonKeyAttributes, b.Projection.NonKeyAttributes) {
+			return false
+		}
+	}
+	return true
+}
+
+func customPreCompare(
+	delta *ackcompare.Delta,
+	a *resource,
+	b *resource,
+) {
+	if ackcompare.HasNilDifference(a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions) ||
+		len(a.ko.Spec.AttributeDefinitions) != len(b.ko.Spec.AttributeDefinitions) {
+		delta.Add("Spec.AttributeDefinitions", a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions)
+	} else if a.ko.Spec.AttributeDefinitions != nil && b.ko.Spec.AttributeDefinitions != nil {
+		if !equalAttributeDefinitions(a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions) {
+			delta.Add("Spec.AttributeDefinitions", a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions)
+		}
+	}
+}
+
+func equalAttributeDefinitions(
+	a []*v1alpha1.AttributeDefinition,
+	b []*v1alpha1.AttributeDefinition,
+) bool {
+	for _, aElement := range a {
+		found := false
+		for _, bElement := range b {
+			if equalStrings(aElement.AttributeName, bElement.AttributeName) {
+				found = true
+				if !equalStrings(aElement.AttributeType, bElement.AttributeType) {
+					return false
+				}
 			}
 		}
-	}
-	if ackcompare.HasNilDifference(
-		aElements.Projection,
-		bElements.Projection,
-	) {
-		updated = append(updated, bElements)
-	} else if aElements.Projection. != nil && bElements.ProvisionedThroughput.WriteCapacityUnits != nil {
-		if *aElements.ProvisionedThroughput.WriteCapacityUnits != *bElements.ProvisionedThroughput.WriteCapacityUnits {
-			updated = append(updated, bElements)
+		if !found {
+			return false
 		}
 	}
-} */
-//updated = append(updated, bElements)
+	return true
+}
+
+func emptyString(s *string) bool {
+	if s == nil {
+		return true
+	}
+	return *s == ""
+}
+
+func equalStrings(a, b *string) bool {
+	if a == nil {
+		return b == nil || *b == ""
+	}
+	return (*a == "" && b == nil) || *a == *b
+}
+
+func equalInt64(a, b *int64) bool {
+	if a == nil {
+		return b == nil || *b == 0
+	}
+	return (*a == 0 && b == nil) || *a == *b
+}

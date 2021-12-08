@@ -7,11 +7,25 @@ operations:
     primary_identifier_field_name: BackupArn
 resources:
   Table:
-    Fields:
+    renames:
+      operations:
+        CreateRepository:
+          input_fields:
+            RepositoryName: Name
+        DeleteRepository:
+          input_fields:
+            RepositoryName: Name
+        DescribeRepositories:
+          input_fields:
+            RepositoryName: Name
+    fields:
       LocalSecondaryIndexes:
         is_immutable: true
       KeySchema:
         is_immutable: true
+      AttributeDefinitions:
+        compare:
+          is_ignored: true
     exceptions:
       errors:
         404:

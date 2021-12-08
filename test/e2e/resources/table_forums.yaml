@@ -1,9 +1,9 @@
 apiVersion: dynamodb.services.k8s.aws/v1alpha1
 kind: Table
 metadata:
-  name: $TABLE_NAME
+  name: testtb
 spec:
-  tableName: $TABLE_NAME
+  tableName: testtb
   attributeDefinitions:
     - attributeName: ForumName
       attributeType: S

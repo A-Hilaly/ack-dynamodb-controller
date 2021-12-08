@@ -131,7 +131,6 @@ func (rm *resourceManager) customUpdateTable(
 		setSyncedCondition(desired, corev1.ConditionTrue, nil, nil)
 		return desired, nil
 	}
-
 	fmt.Println("\nCalled custom update")
 
 	rlog := ackrtlog.FromContext(ctx)
@@ -171,7 +170,7 @@ func (rm *resourceManager) customUpdateTable(
 	}
 
 	if delta.DifferentAt("Spec.Tags") {
-		if err := rm.syncTableTags(ctx, desired); err != nil {
+		if err := rm.syncTableTags(ctx, latest, desired); err != nil {
 			return nil, err
 		}
 	}
@@ -224,14 +223,13 @@ func (rm *resourceManager) newUpdateTableGlobalSecondaryIndexUpdatesPayload(
 	latest *resource,
 	desired *resource,
 ) (*svcsdk.UpdateTableInput, error) {
-	res := &svcsdk.UpdateTableInput{}
-	res.SetTableName(*latest.ko.Spec.TableName)
-
 	addedGSIs, updatedGSIs, removedGSIs := computeGlobalSecondaryIndexDelta(
 		latest.ko.Spec.GlobalSecondaryIndexes,
 		desired.ko.Spec.GlobalSecondaryIndexes,
 	)
-	input := &svcsdk.UpdateTableInput{}
+	input := &svcsdk.UpdateTableInput{
+		TableName: aws.String(*latest.ko.Spec.TableName),
+	}
 	for _, addedGSI := range addedGSIs {
 		update := &svcsdk.GlobalSecondaryIndexUpdate{
 			Create: &svcsdk.CreateGlobalSecondaryIndexAction{
@@ -338,6 +336,7 @@ func (rm *resourceManager) syncTableProvisionedThroughput(
 	defer exit(err)
 
 	input := &svcsdk.UpdateTableInput{
+		TableName:             aws.String(*r.ko.Spec.TableName),
 		ProvisionedThroughput: &svcsdk.ProvisionedThroughput{},
 	}
 	if r.ko.Spec.ProvisionedThroughput != nil {
@@ -392,10 +391,9 @@ func (rm *resourceManager) newUpdateTablePayload(
 	r *resource,
 	delta *ackcompare.Delta,
 ) (*svcsdk.UpdateTableInput, error) {
-	res := &svcsdk.UpdateTableInput{}
-	res.SetTableName(*r.ko.Spec.TableName)
-
-	input := &svcsdk.UpdateTableInput{}
+	input := &svcsdk.UpdateTableInput{
+		TableName: aws.String(*r.ko.Spec.TableName),
+	}
 	switch {
 	case delta.DifferentAt("Spec.BillingMode"):
 		input.BillingMode = aws.String(*r.ko.Spec.BillingMode)
@@ -416,9 +414,8 @@ func (rm *resourceManager) newUpdateTablePayload(
 
 func (rm *resourceManager) syncTableTags(
 	ctx context.Context,
-	r *resource,
+	latest *resource,
+	desired *resource,
 ) (err error) {
 	return
 }
-
-// func compareTableTags() (added map[string]*string, removed)

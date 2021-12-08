@@ -41,9 +41,6 @@ func newResourceDelta(
 		return delta
 	}
 
-	if !reflect.DeepEqual(a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions) {
-		delta.Add("Spec.AttributeDefinitions", a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions)
-	}
 	if ackcompare.HasNilDifference(a.ko.Spec.BillingMode, b.ko.Spec.BillingMode) {
 		delta.Add("Spec.BillingMode", a.ko.Spec.BillingMode, b.ko.Spec.BillingMode)
 	} else if a.ko.Spec.BillingMode != nil && b.ko.Spec.BillingMode != nil {

@@ -61,7 +61,9 @@ func (rm *resourceManager) sdkFind(
 		return nil, ackerr.NotFound
 	}
 
-	input, err := rm.newDescribeRequestPayload(r)
+	input, err := rm.newDescribeRequestPayload(
+		r,
+	)
 	if err != nil {
 		return nil, err
 	}
