@@ -61,9 +61,7 @@ func (rm *resourceManager) sdkFind(
 		return nil, ackerr.NotFound
 	}
 
-	input, err := rm.newDescribeRequestPayload(
-		r,
-	)
+	input, err := rm.newDescribeRequestPayload(r)
 	if err != nil {
 		return nil, err
 	}
@@ -1141,9 +1139,6 @@ func (rm *resourceManager) getImmutableFieldChanges(
 	delta *ackcompare.Delta,
 ) []string {
 	var fields []string
-	if delta.DifferentAt("KeySchema") {
-		fields = append(fields, "KeySchema")
-	}
 	if delta.DifferentAt("LocalSecondaryIndexes") {
 		fields = append(fields, "LocalSecondaryIndexes")
 	}

@@ -417,5 +417,6 @@ func (rm *resourceManager) syncTableTags(
 	latest *resource,
 	desired *resource,
 ) (err error) {
+	fmt.Println("SYNCING TAGS")
 	return
 }
