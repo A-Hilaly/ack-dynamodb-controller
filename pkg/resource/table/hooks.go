@@ -266,22 +266,7 @@ func (rm *resourceManager) newUpdateTablePayload(
 			input.BillingMode = aws.String(svcsdk.BillingModeProvisioned)
 		}
 
-		if r.ko.Spec.ProvisionedThroughput != nil {
-			if r.ko.Spec.ProvisionedThroughput.ReadCapacityUnits != nil {
-				input.ProvisionedThroughput.ReadCapacityUnits = aws.Int64(*r.ko.Spec.ProvisionedThroughput.ReadCapacityUnits)
-			} else {
-				input.ProvisionedThroughput.ReadCapacityUnits = aws.Int64(0)
-			}
-
-			if r.ko.Spec.ProvisionedThroughput.WriteCapacityUnits != nil {
-				input.ProvisionedThroughput.WriteCapacityUnits = aws.Int64(*r.ko.Spec.ProvisionedThroughput.WriteCapacityUnits)
-			} else {
-				input.ProvisionedThroughput.WriteCapacityUnits = aws.Int64(0)
-			}
-		} else {
-			input.ProvisionedThroughput.ReadCapacityUnits = aws.Int64(0)
-			input.ProvisionedThroughput.WriteCapacityUnits = aws.Int64(0)
-		}
+		debugAll(input)
 	case delta.DifferentAt("Spec.StreamSpecification"):
 		if r.ko.Spec.StreamSpecification.StreamEnabled != nil {
 			input.StreamSpecification = &svcsdk.StreamSpecification{
