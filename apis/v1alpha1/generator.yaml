@@ -1,6 +1,9 @@
 ignore:
   field_paths:
+  # Replica of Spec.BillingMode
   - TableDescription.BillingModeSummary
+  # Replica of Spec.SSESpecification
+  # - TableDescription.SSEDescription
 operations:
   UpdateGlobalTable:
     operation_type: Delete

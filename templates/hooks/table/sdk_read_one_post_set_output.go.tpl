@@ -5,12 +5,29 @@
 		// Default billingMode value is `PROVISIONED`
 		ko.Spec.BillingMode = aws.String(svcsdk.BillingModeProvisioned)
 	}
-	// Set SSESpecification default
-	if resp.Table.SSESpecification != nil && resp.Table.SSESpecification.Enabled != nil {
-		ko.Spec.BillingMode = resp.Table.BillingModeSummary.BillingMode
+	// Set SSESpecification
+	if resp.Table.SSEDescription != nil {
+		sseSpecification := &svcapitypes.SSESpecification{}
+		if resp.Table.SSEDescription.Status != nil {
+			switch *resp.Table.SSEDescription.Status {
+			case string(svcapitypes.SSEStatus_ENABLED),
+				string(svcapitypes.SSEStatus_ENABLING),
+				string(svcapitypes.SSEStatus_UPDATING):
+
+				sseSpecification.Enabled = aws.Bool(true)
+				if resp.Table.SSEDescription.SSEType != nil {
+					sseSpecification.SSEType = resp.Table.SSEDescription.SSEType
+				}
+			case string(svcapitypes.SSEStatus_DISABLED),
+				string(svcapitypes.SSEStatus_DISABLING):
+				sseSpecification.Enabled = aws.Bool(false)
+			}
+		}
+		ko.Spec.SSESpecification = sseSpecification
 	} else {
-		// Default billingMode value is `PROVISIONED`
-		ko.Spec.BillingMode = aws.String(svcsdk.BillingModeProvisioned)
+		ko.Spec.SSESpecification = &svcapitypes.SSESpecification{
+			Enabled: aws.Bool(false),
+		}
 	}
 	if isTableCreating(&resource{ko}) {
 		return &resource{ko}, requeueWaitWhileCreating
