@@ -16,17 +16,16 @@ package table
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
-	"github.com/aws-controllers-k8s/dynamodb-controller/apis/v1alpha1"
-	svcapitypes "github.com/aws-controllers-k8s/dynamodb-controller/apis/v1alpha1"
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackrequeue "github.com/aws-controllers-k8s/runtime/pkg/requeue"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
 	"github.com/aws/aws-sdk-go/aws"
 	svcsdk "github.com/aws/aws-sdk-go/service/dynamodb"
 	corev1 "k8s.io/api/core/v1"
+
+	"github.com/aws-controllers-k8s/dynamodb-controller/apis/v1alpha1"
 )
 
 var (
@@ -110,6 +109,9 @@ func (rm *resourceManager) customUpdateTable(
 	latest *resource,
 	delta *ackcompare.Delta,
 ) (updated *resource, err error) {
+	rlog := ackrtlog.FromContext(ctx)
+	exit := rlog.Trace("rm.customUpdateTable")
+	defer exit(err)
 
 	if isTableDeleting(latest) {
 		msg := "table is currently being deleted"
@@ -132,11 +134,6 @@ func (rm *resourceManager) customUpdateTable(
 		setSyncedCondition(desired, corev1.ConditionTrue, nil, nil)
 		return desired, nil
 	}
-	fmt.Println("\nCalled custom update")
-
-	rlog := ackrtlog.FromContext(ctx)
-	exit := rlog.Trace("rm.customUpdateTable")
-	defer exit(err)
 
 	// Merge in the information we read from the API call above to the copy of
 	// the original Kubernetes object we passed to the function
@@ -149,22 +146,16 @@ func (rm *resourceManager) customUpdateTable(
 	// - Modify the provisioned throughput settings of the table.
 	// - Enable or disable DynamoDB Streams on the table.
 	// - Remove a global secondary index from the table.
+	// - Create a new global secondary index on the table. After the index begins
+	//   backfilling, you can use UpdateTable to perform other operations.
 	//
-	// Create a new global secondary index on the table. After the index begins
-	// backfilling, you can use UpdateTable to perform other operations. UpdateTable
-	// is an asynchronous operation; while it is executing, the table status changes
-	// from ACTIVE to UPDATING. While it is UPDATING, you cannot issue another
-	// UpdateTable request. When the table returns to the ACTIVE state, the
-	// UpdateTable operation is complete.
+	// UpdateTable is an asynchronous operation; while it is executing, the table
+	// status changes from ACTIVE to UPDATING. While it is UPDATING, you cannot
+	// issue another UpdateTable request. When the table returns to the ACTIVE state,
+	// the UpdateTable operation is complete.
 
-	if delta.DifferentAt("Spec.AttributeDefinitions") ||
-		delta.DifferentAt("Spec.BillingMode") ||
-		delta.DifferentAt("Spec.StreamSpecification") ||
+	if delta.DifferentAt("Spec.BillingMode") ||
 		delta.DifferentAt("Spec.SEESpecification") {
-
-		fmt.Println("+++++++++++++++++++++++++")
-		debugAll(desired.ko.Spec.AttributeDefinitions, latest.ko.Spec.AttributeDefinitions)
-
 		if err := rm.syncTable(ctx, desired, delta); err != nil {
 			return nil, err
 		}
@@ -179,153 +170,22 @@ func (rm *resourceManager) customUpdateTable(
 	// We only want to call one those updates at once. Priority to the fastest
 	// operations.
 	switch {
+	case delta.DifferentAt("Spec.StreamSpecification"):
+		if err := rm.syncTable(ctx, desired, delta); err != nil {
+			return nil, err
+		}
 	case delta.DifferentAt("Spec.ProvisionedThroughput"):
 		if err := rm.syncTableProvisionedThroughput(ctx, desired); err != nil {
 			return nil, err
 		}
 
 	case delta.DifferentAt("Spec.GlobalSecondaryIndexes"):
-		if !delta.DifferentAt("Spec.AttributeDefinitions") {
-			return nil, fmt.Errorf("TODO")
-		}
-
 		if err := rm.syncTableGlobalSecondaryIndexes(ctx, latest, desired); err != nil {
 			return nil, err
 		}
 	}
 
 	return &resource{ko}, nil
-}
-
-func (rm *resourceManager) syncTableGlobalSecondaryIndexes(
-	ctx context.Context,
-	latest *resource,
-	desired *resource,
-) (err error) {
-	rlog := ackrtlog.FromContext(ctx)
-	exit := rlog.Trace("rm.syncTableGlobalSecondaryIndexes")
-	defer exit(err)
-
-	input, err := rm.newUpdateTableGlobalSecondaryIndexUpdatesPayload(ctx, latest, desired)
-	if err != nil {
-		return err
-	}
-
-	_, err = rm.sdkapi.UpdateTable(input)
-	rm.metrics.RecordAPICall("UPDATE", "UpdateTable", err)
-	if err != nil {
-		return err
-	}
-	return
-}
-
-func (rm *resourceManager) newUpdateTableGlobalSecondaryIndexUpdatesPayload(
-	ctx context.Context,
-	latest *resource,
-	desired *resource,
-) (*svcsdk.UpdateTableInput, error) {
-	addedGSIs, updatedGSIs, removedGSIs := computeGlobalSecondaryIndexDelta(
-		latest.ko.Spec.GlobalSecondaryIndexes,
-		desired.ko.Spec.GlobalSecondaryIndexes,
-	)
-	input := &svcsdk.UpdateTableInput{
-		TableName: aws.String(*latest.ko.Spec.TableName),
-	}
-	for _, addedGSI := range addedGSIs {
-		update := &svcsdk.GlobalSecondaryIndexUpdate{
-			Create: &svcsdk.CreateGlobalSecondaryIndexAction{
-				IndexName:             aws.String(*addedGSI.IndexName),
-				Projection:            newSDKProjection(addedGSI.Projection),
-				KeySchema:             newSDKKeySchemaArray(addedGSI.KeySchema),
-				ProvisionedThroughput: newSDKProvisionedThroughtput(addedGSI.ProvisionedThroughput),
-			},
-		}
-		input.GlobalSecondaryIndexUpdates = append(input.GlobalSecondaryIndexUpdates, update)
-	}
-
-	for _, updatedGSI := range updatedGSIs {
-		update := &svcsdk.GlobalSecondaryIndexUpdate{
-			Update: &svcsdk.UpdateGlobalSecondaryIndexAction{
-				IndexName:             aws.String(*updatedGSI.IndexName),
-				ProvisionedThroughput: newSDKProvisionedThroughtput(updatedGSI.ProvisionedThroughput),
-			},
-		}
-		input.GlobalSecondaryIndexUpdates = append(input.GlobalSecondaryIndexUpdates, update)
-	}
-
-	for _, removedGSI := range removedGSIs {
-		update := &svcsdk.GlobalSecondaryIndexUpdate{
-			Delete: &svcsdk.DeleteGlobalSecondaryIndexAction{
-				IndexName: &removedGSI,
-			},
-		}
-		input.GlobalSecondaryIndexUpdates = append(input.GlobalSecondaryIndexUpdates, update)
-	}
-
-	return input, nil
-}
-
-func newSDKProvisionedThroughtput(pt *v1alpha1.ProvisionedThroughput) *svcsdk.ProvisionedThroughput {
-	provisionedThroughput := &svcsdk.ProvisionedThroughput{}
-	if pt != nil {
-		if pt.ReadCapacityUnits != nil {
-			provisionedThroughput.ReadCapacityUnits = aws.Int64(*pt.ReadCapacityUnits)
-		} else {
-			provisionedThroughput.ReadCapacityUnits = aws.Int64(0)
-		}
-		if pt.WriteCapacityUnits != nil {
-			provisionedThroughput.WriteCapacityUnits = aws.Int64(*pt.WriteCapacityUnits)
-		} else {
-			provisionedThroughput.WriteCapacityUnits = aws.Int64(0)
-		}
-	} else {
-		provisionedThroughput.ReadCapacityUnits = aws.Int64(0)
-		provisionedThroughput.WriteCapacityUnits = aws.Int64(0)
-	}
-	return provisionedThroughput
-}
-
-func newSDKProjection(p *v1alpha1.Projection) *svcsdk.Projection {
-	projection := &svcsdk.Projection{}
-	if p != nil {
-		if p.ProjectionType != nil {
-			projection.ProjectionType = aws.String(*p.ProjectionType)
-		} else {
-			projection.ProjectionType = aws.String("")
-		}
-		if p.NonKeyAttributes != nil {
-			projection.NonKeyAttributes = p.NonKeyAttributes
-		} else {
-			projection.NonKeyAttributes = []*string{}
-		}
-	} else {
-		projection.ProjectionType = aws.String("")
-		projection.NonKeyAttributes = []*string{}
-	}
-	return projection
-}
-
-func newSDKKeySchemaArray(kss []*v1alpha1.KeySchemaElement) []*svcsdk.KeySchemaElement {
-	keySchemas := []*svcsdk.KeySchemaElement{}
-	for _, ks := range kss {
-		keySchema := &svcsdk.KeySchemaElement{}
-		if ks != nil {
-			if ks.AttributeName != nil {
-				keySchema.AttributeName = aws.String(*ks.AttributeName)
-			} else {
-				keySchema.AttributeName = aws.String("")
-			}
-			if ks.KeyType != nil {
-				keySchema.KeyType = aws.String(*ks.KeyType)
-			} else {
-				keySchema.KeyType = aws.String("")
-			}
-		} else {
-			keySchema.KeyType = aws.String("")
-			keySchema.AttributeName = aws.String("")
-		}
-	}
-	return keySchemas
 }
 
 func (rm *resourceManager) syncTableProvisionedThroughput(
@@ -365,6 +225,7 @@ func (rm *resourceManager) syncTableProvisionedThroughput(
 	return err
 }
 
+// syncTable .
 func (rm *resourceManager) syncTable(
 	ctx context.Context,
 	r *resource,
@@ -387,6 +248,7 @@ func (rm *resourceManager) syncTable(
 	return nil
 }
 
+// newUpdateTablePayload
 func (rm *resourceManager) newUpdateTablePayload(
 	ctx context.Context,
 	r *resource,
@@ -397,86 +259,75 @@ func (rm *resourceManager) newUpdateTablePayload(
 	}
 	switch {
 	case delta.DifferentAt("Spec.BillingMode"):
-		input.BillingMode = aws.String(*r.ko.Spec.BillingMode)
+		if r.ko.Spec.BillingMode != nil {
+			input.BillingMode = aws.String(*r.ko.Spec.BillingMode)
+		} else {
+			// set biling mode to the default value `PROVISIONED`
+			input.BillingMode = aws.String(svcsdk.BillingModeProvisioned)
+		}
+
+		if r.ko.Spec.ProvisionedThroughput != nil {
+			if r.ko.Spec.ProvisionedThroughput.ReadCapacityUnits != nil {
+				input.ProvisionedThroughput.ReadCapacityUnits = aws.Int64(*r.ko.Spec.ProvisionedThroughput.ReadCapacityUnits)
+			} else {
+				input.ProvisionedThroughput.ReadCapacityUnits = aws.Int64(0)
+			}
+
+			if r.ko.Spec.ProvisionedThroughput.WriteCapacityUnits != nil {
+				input.ProvisionedThroughput.WriteCapacityUnits = aws.Int64(*r.ko.Spec.ProvisionedThroughput.WriteCapacityUnits)
+			} else {
+				input.ProvisionedThroughput.WriteCapacityUnits = aws.Int64(0)
+			}
+		} else {
+			input.ProvisionedThroughput.ReadCapacityUnits = aws.Int64(0)
+			input.ProvisionedThroughput.WriteCapacityUnits = aws.Int64(0)
+		}
 	case delta.DifferentAt("Spec.StreamSpecification"):
-		input.StreamSpecification = &svcsdk.StreamSpecification{
-			StreamEnabled:  aws.Bool(*r.ko.Spec.StreamSpecification.StreamEnabled),
-			StreamViewType: aws.String(*r.ko.Spec.StreamSpecification.StreamViewType),
+		if r.ko.Spec.StreamSpecification.StreamEnabled != nil {
+			input.StreamSpecification = &svcsdk.StreamSpecification{
+				StreamEnabled: aws.Bool(*r.ko.Spec.StreamSpecification.StreamEnabled),
+			}
+			// Only set streamViewType when streamSpefication is enabled and streamViewType is non-nil.
+			if *r.ko.Spec.StreamSpecification.StreamEnabled && r.ko.Spec.StreamSpecification.StreamViewType != nil {
+				input.StreamSpecification.StreamViewType = aws.String(*r.ko.Spec.StreamSpecification.StreamViewType)
+			}
+		} else {
+			input.StreamSpecification = &svcsdk.StreamSpecification{
+				StreamEnabled: aws.Bool(false),
+			}
 		}
 	case delta.DifferentAt("Spec.SEESpecification"):
-		input.SSESpecification = &svcsdk.SSESpecification{
-			Enabled:        aws.Bool(*r.ko.Spec.SSESpecification.Enabled),
-			SSEType:        aws.String(*r.ko.Spec.SSESpecification.SSEType),
-			KMSMasterKeyId: aws.String(*r.ko.Spec.SSESpecification.KMSMasterKeyID),
+		if r.ko.Spec.SSESpecification.Enabled != nil {
+			input.SSESpecification = &svcsdk.SSESpecification{
+				Enabled:        aws.Bool(*r.ko.Spec.SSESpecification.Enabled),
+				SSEType:        aws.String(*r.ko.Spec.SSESpecification.SSEType),
+				KMSMasterKeyId: aws.String(*r.ko.Spec.SSESpecification.KMSMasterKeyID),
+			}
+		} else {
+			input.SSESpecification = &svcsdk.SSESpecification{
+				Enabled: aws.Bool(false),
+			}
 		}
 	}
 	return input, nil
 }
 
-func (rm *resourceManager) syncTableTags(
-	ctx context.Context,
-	latest *resource,
-	desired *resource,
-) (err error) {
-	rlog := ackrtlog.FromContext(ctx)
-	exit := rlog.Trace("rm.syncTableTags")
-	defer exit(err)
-
-	added, updated, removed := computeTagsDelta(latest.ko.Spec.Tags, desired.ko.Spec.Tags)
-
-	// There are no called to update an existing tag. Hence for those we should remove them
-	// then add them again.
-
-	for _, updatedTag := range updated {
-		removed = append(removed, updatedTag.Key)
-	}
-	added = append(added, updated...)
-
-	if len(removed) > 0 {
-		_, err = rm.sdkapi.UntagResourceWithContext(
-			ctx,
-			&svcsdk.UntagResourceInput{
-				ResourceArn: (*string)(latest.ko.Status.ACKResourceMetadata.ARN),
-				TagKeys:     removed,
-			},
-		)
-		rm.metrics.RecordAPICall("GET", "UntagResource", err)
-		if err != nil {
-			return err
-		}
-	}
-
-	if len(added) > 0 {
-		_, err = rm.sdkapi.TagResourceWithContext(
-			ctx,
-			&svcsdk.TagResourceInput{
-				ResourceArn: (*string)(latest.ko.Status.ACKResourceMetadata.ARN),
-				Tags:        tagsFromResourceTags(added),
-			},
-		)
-		rm.metrics.RecordAPICall("GET", "UntagResource", err)
-		if err != nil {
-			return err
-		}
-
-		return err
-	}
-
-	return nil
-}
-
 // setResourceAdditionalFields will describe the fields that are not return by
-// GetFunctionConcurrency calls
+// DescribeTable calls
 func (rm *resourceManager) setResourceAdditionalFields(
 	ctx context.Context,
-	ko *svcapitypes.Table,
+	ko *v1alpha1.Table,
 ) (err error) {
 	rlog := ackrtlog.FromContext(ctx)
 	exit := rlog.Trace("rm.setResourceAdditionalFields")
 	defer exit(err)
 
 	ko.Spec.Tags, err = rm.getResourceTagsPagesWithContext(ctx, string(*ko.Status.ACKResourceMetadata.ARN))
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (rm *resourceManager) getResourceTagsPagesWithContext(ctx context.Context, resourceARN string) ([]*v1alpha1.Tag, error) {
@@ -509,24 +360,78 @@ func (rm *resourceManager) getResourceTagsPagesWithContext(ctx context.Context, 
 	return tags, nil
 }
 
-func tagsFromSDKTags(svcTags []*svcsdk.Tag) []*v1alpha1.Tag {
-	tags := make([]*v1alpha1.Tag, len(svcTags))
-	for i := range svcTags {
-		tags[i] = &v1alpha1.Tag{
-			Key:   svcTags[i].Key,
-			Value: svcTags[i].Value,
+func customPreCompare(
+	delta *ackcompare.Delta,
+	a *resource,
+	b *resource,
+) {
+
+	if ackcompare.HasNilDifference(a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions) ||
+		len(a.ko.Spec.AttributeDefinitions) != len(b.ko.Spec.AttributeDefinitions) {
+		delta.Add("Spec.AttributeDefinitions", a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions)
+	} else if a.ko.Spec.AttributeDefinitions != nil && b.ko.Spec.AttributeDefinitions != nil {
+		if !equalAttributeDefinitionsArray(a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions) {
+			delta.Add("Spec.AttributeDefinitions", a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions)
 		}
 	}
-	return tags
+
+	if ackcompare.HasNilDifference(a.ko.Spec.GlobalSecondaryIndexes, b.ko.Spec.GlobalSecondaryIndexes) ||
+		len(a.ko.Spec.GlobalSecondaryIndexes) != len(b.ko.Spec.GlobalSecondaryIndexes) {
+		delta.Add("Spec.GlobalSecondaryIndexes", a.ko.Spec.GlobalSecondaryIndexes, b.ko.Spec.GlobalSecondaryIndexes)
+	} else if a.ko.Spec.GlobalSecondaryIndexes != nil && b.ko.Spec.GlobalSecondaryIndexes != nil {
+		if !equalGlobalSecondaryIndexesArrays(a.ko.Spec.GlobalSecondaryIndexes, b.ko.Spec.GlobalSecondaryIndexes) {
+			delta.Add("Spec.GlobalSecondaryIndexes", a.ko.Spec.GlobalSecondaryIndexes, b.ko.Spec.GlobalSecondaryIndexes)
+		}
+	}
+
+	if ackcompare.HasNilDifference(a.ko.Spec.Tags, b.ko.Spec.Tags) ||
+		len(a.ko.Spec.Tags) != len(b.ko.Spec.Tags) {
+		delta.Add("Spec.Tags", a.ko.Spec.Tags, b.ko.Spec.Tags)
+	} else if a.ko.Spec.Tags != nil && b.ko.Spec.Tags != nil {
+		if !equalTags(a.ko.Spec.Tags, b.ko.Spec.Tags) {
+			delta.Add("Spec.Tags", a.ko.Spec.Tags, b.ko.Spec.Tags)
+		}
+	}
 }
 
-func tagsFromResourceTags(rTags []*v1alpha1.Tag) []*svcsdk.Tag {
-	tags := make([]*svcsdk.Tag, len(rTags))
-	for i := range rTags {
-		tags[i] = &svcsdk.Tag{
-			Key:   rTags[i].Key,
-			Value: rTags[i].Value,
+func equalAttributeDefinitionsArray(
+	a []*v1alpha1.AttributeDefinition,
+	b []*v1alpha1.AttributeDefinition,
+) bool {
+	for _, aElement := range a {
+		found := false
+		for _, bElement := range b {
+			if equalStrings(aElement.AttributeName, bElement.AttributeName) {
+				found = true
+				if !equalStrings(aElement.AttributeType, bElement.AttributeType) {
+					return false
+				}
+			}
+		}
+		if !found {
+			return false
 		}
 	}
-	return tags
+	return true
+}
+
+func equalKeySchemas(
+	a []*v1alpha1.KeySchemaElement,
+	b []*v1alpha1.KeySchemaElement,
+) bool {
+	for _, aElement := range a {
+		found := false
+		for _, bElement := range b {
+			if equalStrings(aElement.AttributeName, bElement.AttributeName) {
+				found = true
+				if !equalStrings(aElement.KeyType, bElement.KeyType) {
+					return false
+				}
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }

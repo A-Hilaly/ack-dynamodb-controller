@@ -1,3 +1,6 @@
+ignore:
+  shape_paths:
+  - DescribeTable.BillingModeSummary
 operations:
   UpdateGlobalTable:
     operation_type: Delete
