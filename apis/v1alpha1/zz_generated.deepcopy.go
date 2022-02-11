@@ -1846,11 +1846,6 @@ func (in *ReplicaSettingsDescription) DeepCopyInto(out *ReplicaSettingsDescripti
 		*out = new(string)
 		**out = **in
 	}
-	if in.ReplicaBillingModeSummary != nil {
-		in, out := &in.ReplicaBillingModeSummary, &out.ReplicaBillingModeSummary
-		*out = new(BillingModeSummary)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.ReplicaProvisionedReadCapacityUnits != nil {
 		in, out := &in.ReplicaProvisionedReadCapacityUnits, &out.ReplicaProvisionedReadCapacityUnits
 		*out = new(int64)
@@ -2269,11 +2264,6 @@ func (in *TableDescription) DeepCopyInto(out *TableDescription) {
 			}
 		}
 	}
-	if in.BillingModeSummary != nil {
-		in, out := &in.BillingModeSummary, &out.BillingModeSummary
-		*out = new(BillingModeSummary)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.CreationDateTime != nil {
 		in, out := &in.CreationDateTime, &out.CreationDateTime
 		*out = (*in).DeepCopy()
@@ -2350,11 +2340,6 @@ func (in *TableDescription) DeepCopyInto(out *TableDescription) {
 	if in.RestoreSummary != nil {
 		in, out := &in.RestoreSummary, &out.RestoreSummary
 		*out = new(RestoreSummary)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.SSEDescription != nil {
-		in, out := &in.SSEDescription, &out.SSEDescription
-		*out = new(SSEDescription)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.StreamSpecification != nil {
@@ -2550,11 +2535,6 @@ func (in *TableStatus) DeepCopyInto(out *TableStatus) {
 		*out = new(ArchivalSummary)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.BillingModeSummary != nil {
-		in, out := &in.BillingModeSummary, &out.BillingModeSummary
-		*out = new(BillingModeSummary)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.CreationDateTime != nil {
 		in, out := &in.CreationDateTime, &out.CreationDateTime
 		*out = (*in).DeepCopy()
@@ -2593,11 +2573,6 @@ func (in *TableStatus) DeepCopyInto(out *TableStatus) {
 	if in.RestoreSummary != nil {
 		in, out := &in.RestoreSummary, &out.RestoreSummary
 		*out = new(RestoreSummary)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.SSEDescription != nil {
-		in, out := &in.SSEDescription, &out.SSEDescription
-		*out = new(SSEDescription)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.TableID != nil {
