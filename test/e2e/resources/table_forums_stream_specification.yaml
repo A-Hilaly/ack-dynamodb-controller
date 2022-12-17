@@ -1,0 +1,30 @@
+apiVersion: dynamodb.services.k8s.aws/v1alpha1
+kind: Table
+metadata:
+  name: $TABLE_NAME
+spec:
+  tableName: $TABLE_NAME
+  attributeDefinitions:
+    - attributeName: ForumName
+      attributeType: S
+    - attributeName: LastPostDateTime
+      attributeType: S
+    - attributeName: Subject
+      attributeType: S
+  keySchema:
+    - attributeName: ForumName
+      keyType: HASH
+    - attributeName: Subject
+      keyType: RANGE
+  localSecondaryIndexes:
+    - indexName: LastPostIndex
+      keySchema:
+        - attributeName: ForumName
+          keyType: HASH
+        - attributeName: LastPostDateTime
+          keyType: RANGE
+      projection:
+        projectionType: KEYS_ONLY
+  provisionedThroughput:
+    readCapacityUnits: $PROVISIONED_THROUGHPUT_READ_CAPACITY_UNITS
+    writeCapacityUnits: $PROVISIONED_THROUGHPUT_WRITE_CAPACITY_UNITS

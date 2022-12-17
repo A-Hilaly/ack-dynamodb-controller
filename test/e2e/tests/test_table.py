@@ -167,3 +167,70 @@ class TestTable:
         # Check DynamoDB Table doesn't exists
         exists = self.table_exists(dynamodb_client, resource_name)
         assert not exists
+
+    def test_table_update_SSESpecification(self, dynamodb_client):
+        resource_name = random_suffix_name("table", 32)
+
+        replacements = REPLACEMENT_VALUES.copy()
+        replacements["TABLE_NAME"] = resource_name
+
+        # Load Table CR
+        resource_data = load_dynamodb_resource(
+            "table_forums_sse",
+            additional_replacements=replacements,
+        )
+        logging.debug(resource_data)
+
+        # Create k8s resource
+        ref = k8s.CustomResourceReference(
+            CRD_GROUP, CRD_VERSION, RESOURCE_PLURAL,
+            resource_name, namespace="default",
+        )
+        k8s.create_custom_resource(ref, resource_data)
+        cr = k8s.wait_resource_consumed_by_controller(ref)
+
+        assert cr is not None
+        assert k8s.get_resource_exists(ref)
+
+        wait_for_cr_status(
+            ref,
+            "tableStatus",
+            "ACTIVE",
+            10,
+            5,
+        )
+
+        # Check DynamoDB Table exists
+        exists = self.table_exists(dynamodb_client, resource_name)
+        assert exists
+
+        # Get CR latest revision
+        cr = k8s.wait_resource_consumed_by_controller(ref)
+
+        # Update table list of tags
+        tags = [
+            {
+                "key": "key1",
+                "value": "value1",
+            },
+        ]
+        cr["spec"]["tags"] = tags
+
+        # Patch k8s resource
+        k8s.patch_custom_resource(ref, cr)
+        time.sleep(UPDATE_TAGS_WAIT_AFTER_SECONDS)
+
+        table_tags = get_resource_tags(cr["status"]["ackResourceMetadata"]["arn"])
+        assert len(table_tags) == len(tags)
+        assert table_tags[0]['Key'] == tags[0]['key']
+        assert table_tags[0]['Value'] == tags[0]['value']
+
+        # Delete k8s resource
+        _, deleted = k8s.delete_custom_resource(ref)
+        assert deleted is True
+
+        time.sleep(DELETE_WAIT_AFTER_SECONDS)
+
+        # Check DynamoDB Table doesn't exists
+        exists = self.table_exists(dynamodb_client, resource_name)
+        assert not exists

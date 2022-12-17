@@ -155,7 +155,7 @@ func (rm *resourceManager) customUpdateTable(
 	// the UpdateTable operation is complete.
 
 	if delta.DifferentAt("Spec.BillingMode") ||
-		delta.DifferentAt("Spec.SEESpecification") {
+		delta.DifferentAt("Spec.SSESpecification") {
 		if err := rm.syncTable(ctx, desired, delta); err != nil {
 			return nil, err
 		}
@@ -227,7 +227,7 @@ func (rm *resourceManager) syncTableProvisionedThroughput(
 }
 
 // syncTable updates a given table billing mode, stream specification
-// or SEE specification.
+// or SSE specification.
 func (rm *resourceManager) syncTable(
 	ctx context.Context,
 	r *resource,
@@ -285,7 +285,7 @@ func (rm *resourceManager) newUpdateTablePayload(
 			}
 		}
 	}
-	if delta.DifferentAt("Spec.SEESpecification") {
+	if delta.DifferentAt("Spec.SSESpecification") {
 		if r.ko.Spec.SSESpecification != nil {
 			if r.ko.Spec.SSESpecification.Enabled != nil {
 				input.SSESpecification = &svcsdk.SSESpecification{
