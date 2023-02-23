@@ -1,3 +1,9 @@
+ignore:
+  field_paths:
+  # Replica of Spec.BillingMode
+  - TableDescription.BillingModeSummary
+  # Replica of Spec.SSESpecification
+  - TableDescription.SSEDescription
 operations:
   UpdateGlobalTable:
     operation_type: Delete
@@ -12,9 +18,25 @@ resources:
         from:
           operation: UpdateTimeToLive
           path: TimeToLiveSpecification
+      AttributeDefinitions:
+        compare:
+          is_ignored: true
+      # non modifiable field
+      KeySchema:
+        compare:
+          is_immutable: true
+          is_ignored: true
+      GlobalSecondaryIndexes:
+        compare:
+          is_ignored: true
       Tags:
         compare:
           is_ignored: true
+      # non modifiable field
+      LocalSecondaryIndexes:
+        is_immutable: true
+      TableClass:
+        late_initialize: {}
     exceptions:
       errors:
         404:

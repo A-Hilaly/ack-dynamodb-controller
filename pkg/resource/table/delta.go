@@ -44,21 +44,12 @@ func newResourceDelta(
 	}
 	customPreCompare(delta, a, b)
 
-	if !reflect.DeepEqual(a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions) {
-		delta.Add("Spec.AttributeDefinitions", a.ko.Spec.AttributeDefinitions, b.ko.Spec.AttributeDefinitions)
-	}
 	if ackcompare.HasNilDifference(a.ko.Spec.BillingMode, b.ko.Spec.BillingMode) {
 		delta.Add("Spec.BillingMode", a.ko.Spec.BillingMode, b.ko.Spec.BillingMode)
 	} else if a.ko.Spec.BillingMode != nil && b.ko.Spec.BillingMode != nil {
 		if *a.ko.Spec.BillingMode != *b.ko.Spec.BillingMode {
 			delta.Add("Spec.BillingMode", a.ko.Spec.BillingMode, b.ko.Spec.BillingMode)
 		}
-	}
-	if !reflect.DeepEqual(a.ko.Spec.GlobalSecondaryIndexes, b.ko.Spec.GlobalSecondaryIndexes) {
-		delta.Add("Spec.GlobalSecondaryIndexes", a.ko.Spec.GlobalSecondaryIndexes, b.ko.Spec.GlobalSecondaryIndexes)
-	}
-	if !reflect.DeepEqual(a.ko.Spec.KeySchema, b.ko.Spec.KeySchema) {
-		delta.Add("Spec.KeySchema", a.ko.Spec.KeySchema, b.ko.Spec.KeySchema)
 	}
 	if !reflect.DeepEqual(a.ko.Spec.LocalSecondaryIndexes, b.ko.Spec.LocalSecondaryIndexes) {
 		delta.Add("Spec.LocalSecondaryIndexes", a.ko.Spec.LocalSecondaryIndexes, b.ko.Spec.LocalSecondaryIndexes)
