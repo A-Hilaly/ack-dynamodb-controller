@@ -17,6 +17,7 @@ package table
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
@@ -348,6 +349,23 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Status.RestoreSummary = nil
 	}
+	if resp.Table.SSEDescription != nil {
+		f := &svcapitypes.SSESpecification{}
+		if resp.Table.SSEDescription.Status != nil {
+			f.Enabled = aws.Bool(*resp.Table.SSEDescription.Status == "ENABLED")
+		} else {
+			f.Enabled = aws.Bool(false)
+		}
+		if resp.Table.SSEDescription.SSEType != nil {
+			f.SSEType = resp.Table.SSEDescription.SSEType
+		}
+		if resp.Table.SSEDescription.KMSMasterKeyArn != nil {
+			f.KMSMasterKeyID = resp.Table.SSEDescription.KMSMasterKeyArn
+		}
+		ko.Spec.SSESpecification = f
+	} else {
+		ko.Spec.SSESpecification = nil
+	}
 	if resp.Table.StreamSpecification != nil {
 		f13 := &svcapitypes.StreamSpecification{}
 		if resp.Table.StreamSpecification.StreamEnabled != nil {
@@ -410,6 +428,10 @@ func (rm *resourceManager) sdkFind(
 	if err := rm.setResourceAdditionalFields(ctx, ko); err != nil {
 		return nil, err
 	}
+	b, _ := json.Marshal(resp.Table.SSEDescription)
+	fmt.Println("SSE VALUE DESCRIBE", string(b))
+	b, _ = json.Marshal(r.ko.Spec.SSESpecification)
+	fmt.Println("SSE VALUE RES", string(b))
 	return &resource{ko}, nil
 }
 

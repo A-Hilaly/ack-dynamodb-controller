@@ -35,6 +35,8 @@ resources:
       # non modifiable field
       LocalSecondaryIndexes:
         is_immutable: true
+      TableClass:
+        late_initialize: {}
     exceptions:
       errors:
         404:
