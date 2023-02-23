@@ -214,9 +214,6 @@ type TableStatus struct {
 	// Contains details for the restore.
 	// +kubebuilder:validation:Optional
 	RestoreSummary *RestoreSummary `json:"restoreSummary,omitempty"`
-	// Contains details of the table class.
-	// +kubebuilder:validation:Optional
-	TableClassSummary *TableClassSummary `json:"tableClassSummary,omitempty"`
 	// Unique identifier for the table for which the backup was created.
 	// +kubebuilder:validation:Optional
 	TableID *string `json:"tableID,omitempty"`

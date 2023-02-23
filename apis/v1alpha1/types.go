@@ -659,12 +659,10 @@ type TableDescription struct {
 	// Represents the DynamoDB Streams configuration for a table in DynamoDB.
 	StreamSpecification *StreamSpecification `json:"streamSpecification,omitempty"`
 	TableARN            *string              `json:"tableARN,omitempty"`
-	// Contains details of the table class.
-	TableClassSummary *TableClassSummary `json:"tableClassSummary,omitempty"`
-	TableID           *string            `json:"tableID,omitempty"`
-	TableName         *string            `json:"tableName,omitempty"`
-	TableSizeBytes    *int64             `json:"tableSizeBytes,omitempty"`
-	TableStatus       *string            `json:"tableStatus,omitempty"`
+	TableID             *string              `json:"tableID,omitempty"`
+	TableName           *string              `json:"tableName,omitempty"`
+	TableSizeBytes      *int64               `json:"tableSizeBytes,omitempty"`
+	TableStatus         *string              `json:"tableStatus,omitempty"`
 }
 
 // Describes a tag. A tag is a key-value pair. You can add up to 50 tags to

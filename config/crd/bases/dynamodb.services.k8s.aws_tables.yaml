@@ -500,15 +500,6 @@ spec:
                   sourceTableARN:
                     type: string
                 type: object
-              tableClassSummary:
-                description: Contains details of the table class.
-                properties:
-                  lastUpdateDateTime:
-                    format: date-time
-                    type: string
-                  tableClass:
-                    type: string
-                type: object
               tableID:
                 description: Unique identifier for the table for which the backup
                   was created.

@@ -385,18 +385,6 @@ func (rm *resourceManager) sdkFind(
 		arn := ackv1alpha1.AWSResourceName(*resp.Table.TableArn)
 		ko.Status.ACKResourceMetadata.ARN = &arn
 	}
-	if resp.Table.TableClassSummary != nil {
-		f15 := &svcapitypes.TableClassSummary{}
-		if resp.Table.TableClassSummary.LastUpdateDateTime != nil {
-			f15.LastUpdateDateTime = &metav1.Time{*resp.Table.TableClassSummary.LastUpdateDateTime}
-		}
-		if resp.Table.TableClassSummary.TableClass != nil {
-			f15.TableClass = resp.Table.TableClassSummary.TableClass
-		}
-		ko.Status.TableClassSummary = f15
-	} else {
-		ko.Status.TableClassSummary = nil
-	}
 	if resp.Table.TableId != nil {
 		ko.Status.TableID = resp.Table.TableId
 	} else {
@@ -766,18 +754,6 @@ func (rm *resourceManager) sdkCreate(
 	if resp.TableDescription.TableArn != nil {
 		arn := ackv1alpha1.AWSResourceName(*resp.TableDescription.TableArn)
 		ko.Status.ACKResourceMetadata.ARN = &arn
-	}
-	if resp.TableDescription.TableClassSummary != nil {
-		f15 := &svcapitypes.TableClassSummary{}
-		if resp.TableDescription.TableClassSummary.LastUpdateDateTime != nil {
-			f15.LastUpdateDateTime = &metav1.Time{*resp.TableDescription.TableClassSummary.LastUpdateDateTime}
-		}
-		if resp.TableDescription.TableClassSummary.TableClass != nil {
-			f15.TableClass = resp.TableDescription.TableClassSummary.TableClass
-		}
-		ko.Status.TableClassSummary = f15
-	} else {
-		ko.Status.TableClassSummary = nil
 	}
 	if resp.TableDescription.TableId != nil {
 		ko.Status.TableID = resp.TableDescription.TableId

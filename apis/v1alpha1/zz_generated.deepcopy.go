@@ -2514,11 +2514,6 @@ func (in *TableDescription) DeepCopyInto(out *TableDescription) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.TableClassSummary != nil {
-		in, out := &in.TableClassSummary, &out.TableClassSummary
-		*out = new(TableClassSummary)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.TableID != nil {
 		in, out := &in.TableID, &out.TableID
 		*out = new(string)
@@ -2750,11 +2745,6 @@ func (in *TableStatus) DeepCopyInto(out *TableStatus) {
 	if in.RestoreSummary != nil {
 		in, out := &in.RestoreSummary, &out.RestoreSummary
 		*out = new(RestoreSummary)
-		(*in).DeepCopyInto(*out)
-	}
-	if in.TableClassSummary != nil {
-		in, out := &in.TableClassSummary, &out.TableClassSummary
-		*out = new(TableClassSummary)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.TableID != nil {
