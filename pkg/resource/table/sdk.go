@@ -395,6 +395,11 @@ func (rm *resourceManager) sdkFind(
 	} else {
 		ko.Spec.TableName = nil
 	}
+	if resp.Table.TableClassSummary != nil {
+		ko.Spec.TableClass = resp.Table.TableClassSummary.TableClass
+	} else {
+		ko.Spec.TableClass = aws.String("STANDARD")
+	}
 	if resp.Table.TableSizeBytes != nil {
 		ko.Status.TableSizeBytes = resp.Table.TableSizeBytes
 	} else {
@@ -416,10 +421,10 @@ func (rm *resourceManager) sdkFind(
 	if err := rm.setResourceAdditionalFields(ctx, ko); err != nil {
 		return nil, err
 	}
-	b, _ := json.Marshal(resp.Table.SSEDescription)
-	fmt.Println("SSE VALUE DESCRIBE", string(b))
-	b, _ = json.Marshal(r.ko.Spec.SSESpecification)
-	fmt.Println("SSE VALUE RES", string(b))
+	b, _ := json.Marshal(resp.Table.TableClassSummary.TableClass)
+	fmt.Println("CLASS VALUE DESCRIBE", string(b))
+	b, _ = json.Marshal(r.ko.Spec.TableClass)
+	fmt.Println("CLASS VALUE RES", string(b))
 	return &resource{ko}, nil
 }
 

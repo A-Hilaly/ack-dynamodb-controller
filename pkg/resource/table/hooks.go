@@ -168,9 +168,10 @@ func (rm *resourceManager) customUpdateTable(
 	}
 
 	if delta.DifferentAt("Spec.BillingMode") ||
-		delta.DifferentAt("Spec.SSESpecification") || delta.DifferentAt("Spec.TableClass") {
+		delta.DifferentAt("Spec.SSESpecification") ||
+		delta.DifferentAt("Spec.TableClass") {
 		if err := rm.syncTable(ctx, desired, delta); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot update table %v", err)
 		}
 	}
 
@@ -273,6 +274,12 @@ func (rm *resourceManager) newUpdateTablePayload(
 					Enabled: aws.Bool(false),
 				}
 			}
+		}
+	}
+
+	if delta.DifferentAt("Spec.TableClass") {
+		if r.ko.Spec.TableClass != nil {
+			input.TableClass = aws.String(*r.ko.Spec.TableClass)
 		}
 	}
 
@@ -387,7 +394,6 @@ func customPreCompare(
 			delta.Add("Spec.Tags", a.ko.Spec.Tags, b.ko.Spec.Tags)
 		}
 	}
-
 	if a.ko.Spec.TimeToLive == nil && b.ko.Spec.TimeToLive != nil {
 		a.ko.Spec.TimeToLive = &v1alpha1.TimeToLiveSpecification{
 			Enabled: &DefaultTTLEnabledValue,

@@ -36,6 +36,8 @@ resources:
       # non modifiable field
       LocalSecondaryIndexes:
         is_immutable: true
+        compare:
+          is_ignored: true
     exceptions:
       errors:
         404:
