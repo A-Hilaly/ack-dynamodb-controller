@@ -15,6 +15,8 @@ package table
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	ackcompare "github.com/aws-controllers-k8s/runtime/pkg/compare"
 	ackrtlog "github.com/aws-controllers-k8s/runtime/pkg/runtime/log"
@@ -136,8 +138,10 @@ func (rm *resourceManager) newUpdateTableGlobalSecondaryIndexUpdatesPayload(
 		latest.ko.Spec.GlobalSecondaryIndexes,
 		desired.ko.Spec.GlobalSecondaryIndexes,
 	)
+	fmt.Println("000000000000000\n\n")
 	input := &svcsdk.UpdateTableInput{
-		TableName: aws.String(*latest.ko.Spec.TableName),
+		TableName:            aws.String(*latest.ko.Spec.TableName),
+		AttributeDefinitions: newSDKAttributesDefinition(desired.ko.Spec.AttributeDefinitions),
 	}
 
 	for _, addedGSI := range addedGSIs {
@@ -152,6 +156,8 @@ func (rm *resourceManager) newUpdateTableGlobalSecondaryIndexUpdatesPayload(
 		input.GlobalSecondaryIndexUpdates = append(input.GlobalSecondaryIndexUpdates, update)
 		// We can only remove, update or add one GSI at once. Hence we return the update call input
 		// after we find the first added GSI.
+		b, _ := json.Marshal(input)
+		fmt.Println("////////////////////////////////////////////////////////////1", string(b))
 		return input, nil
 	}
 
@@ -165,6 +171,8 @@ func (rm *resourceManager) newUpdateTableGlobalSecondaryIndexUpdatesPayload(
 		input.GlobalSecondaryIndexUpdates = append(input.GlobalSecondaryIndexUpdates, update)
 		// We can only remove, update or add one GSI at once. Hence we return the update call input
 		// after we find the first updated GSI.
+		b, _ := json.Marshal(input)
+		fmt.Println("////////////////////////////////////////////////////////////2", string(b))
 		return input, nil
 	}
 
@@ -177,9 +185,12 @@ func (rm *resourceManager) newUpdateTableGlobalSecondaryIndexUpdatesPayload(
 		input.GlobalSecondaryIndexUpdates = append(input.GlobalSecondaryIndexUpdates, update)
 		// We can only remove, update or add one GSI at once. Hence we return the update call input
 		// after we find the first removed GSI.
+		b, _ := json.Marshal(input)
+		fmt.Println("////////////////////////////////////////////////////////////3", string(b))
 		return input, nil
 	}
-
+	b, _ := json.Marshal(input)
+	fmt.Println("////////////////////////////////////////////////////////////4", string(b))
 	return input, nil
 }
 
@@ -242,6 +253,7 @@ func newSDKKeySchemaArray(kss []*v1alpha1.KeySchemaElement) []*svcsdk.KeySchemaE
 			keySchema.KeyType = aws.String("")
 			keySchema.AttributeName = aws.String("")
 		}
+		keySchemas = append(keySchemas, keySchema)
 	}
 	return keySchemas
 }

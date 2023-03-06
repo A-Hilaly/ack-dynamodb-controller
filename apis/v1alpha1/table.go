@@ -26,13 +26,15 @@ type TableSpec struct {
 	AttributeDefinitions   []*AttributeDefinition  `json:"attributeDefinitions"`
 	BillingMode            *string                 `json:"billingMode,omitempty"`
 	GlobalSecondaryIndexes []*GlobalSecondaryIndex `json:"globalSecondaryIndexes,omitempty"`
-	KeySchema              []*KeySchemaElement     `json:"keySchema"`
-	LocalSecondaryIndexes  []*LocalSecondaryIndex  `json:"localSecondaryIndexes,omitempty"`
-	ProvisionedThroughput  *ProvisionedThroughput  `json:"provisionedThroughput,omitempty"`
-	SSESpecification       *SSESpecification       `json:"sseSpecification,omitempty"`
-	StreamSpecification    *StreamSpecification    `json:"streamSpecification,omitempty"`
-	TableClass             *string                 `json:"tableClass,omitempty"`
-	TableName              *string                 `json:"tableName"`
+
+	//--
+	KeySchema             []*KeySchemaElement    `json:"keySchema"`
+	LocalSecondaryIndexes []*LocalSecondaryIndex `json:"localSecondaryIndexes,omitempty"`
+	ProvisionedThroughput *ProvisionedThroughput `json:"provisionedThroughput,omitempty"`
+	SSESpecification      *SSESpecification      `json:"sseSpecification,omitempty"`
+	StreamSpecification   *StreamSpecification   `json:"streamSpecification,omitempty"`
+	TableClass            *string                `json:"tableClass,omitempty"`
+	TableName             *string                `json:"tableName"`
 	// A list of key-value pairs to label the table. For more information, see Tagging
 	// for DynamoDB (https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Tagging.html).
 	Tags []*Tag `json:"tags,omitempty"`

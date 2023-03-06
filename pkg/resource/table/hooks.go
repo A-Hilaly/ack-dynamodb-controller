@@ -178,6 +178,7 @@ func (rm *resourceManager) customUpdateTable(
 	// We want to update fast fields first
 	// Then attributes
 	// then GSI
+	fmt.Println("++++++++++", delta.DifferentExcept("Spec.Tags", "Spec.TimeToLive"))
 	if delta.DifferentExcept("Spec.Tags", "Spec.TimeToLive") {
 		switch {
 		case delta.DifferentAt("Spec.StreamSpecification"):
@@ -188,8 +189,8 @@ func (rm *resourceManager) customUpdateTable(
 			if err := rm.syncTableProvisionedThroughput(ctx, desired); err != nil {
 				return nil, err
 			}
-
-		case delta.DifferentAt("Spec.GlobalSecondaryIndexes"):
+		case delta.DifferentAt("Spec.GlobalSecondaryIndexes") && delta.DifferentAt("Spec.AttributeDefinitions"):
+			fmt.Println("\n\n[[][][][][][][]]")
 			if err := rm.syncTableGlobalSecondaryIndexes(ctx, latest, desired); err != nil {
 				return nil, err
 			}
@@ -214,7 +215,8 @@ func (rm *resourceManager) syncTable(
 	if err != nil {
 		return err
 	}
-
+	b, _ := json.Marshal(input)
+	fmt.Println("++++++++++", string(b))
 	_, err = rm.sdkapi.UpdateTable(input)
 	rm.metrics.RecordAPICall("UPDATE", "UpdateTable", err)
 	if err != nil {
@@ -231,6 +233,14 @@ func (rm *resourceManager) newUpdateTablePayload(
 ) (*svcsdk.UpdateTableInput, error) {
 	input := &svcsdk.UpdateTableInput{
 		TableName: aws.String(*r.ko.Spec.TableName),
+	}
+
+	if delta.DifferentAt("Spec.AttributeDefinitions") {
+		if r.ko.Spec.AttributeDefinitions != nil {
+			input.AttributeDefinitions = newSDKAttributesDefinition(r.ko.Spec.AttributeDefinitions)
+		} else {
+			input.AttributeDefinitions = []*svcsdk.AttributeDefinition{}
+		}
 	}
 
 	if delta.DifferentAt("Spec.BillingMode") {
@@ -376,6 +386,14 @@ func customPreCompare(
 	} else if a.ko.Spec.GlobalSecondaryIndexes != nil && b.ko.Spec.GlobalSecondaryIndexes != nil {
 		if !equalGlobalSecondaryIndexesArrays(a.ko.Spec.GlobalSecondaryIndexes, b.ko.Spec.GlobalSecondaryIndexes) {
 			delta.Add("Spec.GlobalSecondaryIndexes", a.ko.Spec.GlobalSecondaryIndexes, b.ko.Spec.GlobalSecondaryIndexes)
+		}
+	}
+
+	if len(a.ko.Spec.LocalSecondaryIndexes) != len(b.ko.Spec.LocalSecondaryIndexes) {
+		delta.Add("Spec.LocalSecondaryIndexes", a.ko.Spec.LocalSecondaryIndexes, b.ko.Spec.LocalSecondaryIndexes)
+	} else if a.ko.Spec.LocalSecondaryIndexes != nil && b.ko.Spec.LocalSecondaryIndexes != nil {
+		if !equalLocalSecondaryIndexesArrays(a.ko.Spec.LocalSecondaryIndexes, b.ko.Spec.LocalSecondaryIndexes) {
+			delta.Add("Spec.LocalSecondaryIndexes", a.ko.Spec.LocalSecondaryIndexes, b.ko.Spec.LocalSecondaryIndexes)
 		}
 	}
 
