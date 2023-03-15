@@ -15,7 +15,24 @@ spec:
     singular: table
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .status.ackResourceMetadata.arn
+      name: ARN
+      priority: 1
+      type: string
+    - jsonPath: .spec.tableClass
+      name: CLASS
+      type: string
+    - jsonPath: .status.tableStatus
+      name: STATUS
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="ACK.ResourceSynced")].status
+      name: Synced
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Table is the Schema for the Tables API
